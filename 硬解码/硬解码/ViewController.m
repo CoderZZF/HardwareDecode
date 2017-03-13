@@ -50,6 +50,8 @@ const char pStartCode[] = "\x00\x00\x00\x01";
     inputSize = 0;
     inputBuffer = malloc(inputMaxSize);
     
+    // 2. 打开inputStream
+    [self.inputStream open];
     
     // 开启定时器
     [self.displayLink setPaused:NO];
@@ -63,6 +65,11 @@ const char pStartCode[] = "\x00\x00\x00\x01";
         [self readPacket];
         
         // 2. 判断数据的类型
+        if (packetSize == 0 && packetBuffer == NULL) {
+            [self.displayLink setPaused:YES];
+            NSLog(@"数据已经读完了");
+            return;
+        }
         
         // 3. 解码
     });
@@ -91,6 +98,7 @@ const char pStartCode[] = "\x00\x00\x00\x01";
                 packetSize = pStart - 3 - inputBuffer;
                 
                 // 从inputBuffer中拷贝数据到packetBuffer
+                packetBuffer = malloc(packetSize);
                 memcpy(packetBuffer, inputBuffer, packetSize);
                 
                 // 将数据移动到最前面
@@ -98,6 +106,8 @@ const char pStartCode[] = "\x00\x00\x00\x01";
                 
                 // 改变inputSize的大小
                 inputSize -= packetSize;
+                
+                break;
             } else {
                 pStart++;
             }
