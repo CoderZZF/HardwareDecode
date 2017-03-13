@@ -14,6 +14,7 @@
 		2B1389751E7689B100763F1C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2B1389741E7689B100763F1C /* Assets.xcassets */; };
 		2B1389781E7689B100763F1C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2B1389761E7689B100763F1C /* LaunchScreen.storyboard */; };
 		2B1389801E768B0000763F1C /* 123.h264 in Resources */ = {isa = PBXBuildFile; fileRef = 2B13897F1E768B0000763F1C /* 123.h264 */; };
+		2B1389831E76DE3500763F1C /* AAPLEAGLLayer.m in Sources */ = {isa = PBXBuildFile; fileRef = 2B1389821E76DE3500763F1C /* AAPLEAGLLayer.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,8 @@
 		2B1389771E7689B100763F1C /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		2B1389791E7689B100763F1C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2B13897F1E768B0000763F1C /* 123.h264 */ = {isa = PBXFileReference; lastKnownFileType = file; path = 123.h264; sourceTree = "<group>"; };
+		2B1389811E76DE3500763F1C /* AAPLEAGLLayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AAPLEAGLLayer.h; sourceTree = "<group>"; };
+		2B1389821E76DE3500763F1C /* AAPLEAGLLayer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AAPLEAGLLayer.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +67,8 @@
 				2B13896C1E7689B100763F1C /* AppDelegate.m */,
 				2B13896E1E7689B100763F1C /* ViewController.h */,
 				2B13896F1E7689B100763F1C /* ViewController.m */,
+				2B1389811E76DE3500763F1C /* AAPLEAGLLayer.h */,
+				2B1389821E76DE3500763F1C /* AAPLEAGLLayer.m */,
 				2B1389711E7689B100763F1C /* Main.storyboard */,
 				2B1389741E7689B100763F1C /* Assets.xcassets */,
 				2B13897F1E768B0000763F1C /* 123.h264 */,
@@ -157,6 +162,7 @@
 			files = (
 				2B1389701E7689B100763F1C /* ViewController.m in Sources */,
 				2B13896D1E7689B100763F1C /* AppDelegate.m in Sources */,
+				2B1389831E76DE3500763F1C /* AAPLEAGLLayer.m in Sources */,
 				2B13896A1E7689B100763F1C /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -8,6 +8,7 @@
 
 #import "ViewController.h"
 #import <VideoToolbox/VideoToolbox.h>
+#import "AAPLEAGLLayer.h"
 
 const char pStartCode[] = "\x00\x00\x00\x01";
 
@@ -32,6 +33,8 @@ const char pStartCode[] = "\x00\x00\x00\x01";
 @property (nonatomic, strong) NSInputStream *inputStream;
 @property (nonatomic, strong) dispatch_queue_t queue;
 @property (nonatomic, assign) VTDecompressionSessionRef decompressionSession;
+@property (nonatomic, assign) CMVideoFormatDescriptionRef formatDescription;
+@property (nonatomic, weak) AAPLEAGLLayer *glLayer;
 @end
 
 @implementation ViewController
@@ -51,6 +54,11 @@ const char pStartCode[] = "\x00\x00\x00\x01";
     
     // 3. 创建队列
     self.queue = dispatch_get_global_queue(0, 0);
+    
+    // 4. 创建用于渲染的layer
+    AAPLEAGLLayer *layer = [[AAPLEAGLLayer alloc] initWithFrame:self.view.bounds];
+    [self.view.layer insertSublayer:layer atIndex:0];
+    self.glLayer = layer;
 }
 
 
@@ -78,7 +86,7 @@ const char pStartCode[] = "\x00\x00\x00\x01";
         if (packetSize == 0 && packetBuffer == NULL) {
             [self.displayLink setPaused:YES];
             [self.inputStream close];
-            //            NSLog(@"数据已经读完了");
+            NSLog(@"数据已经读完了");
             return;
         }
         
@@ -94,14 +102,14 @@ const char pStartCode[] = "\x00\x00\x00\x01";
                 //                NSLog(@"SPS数据");
                 spsSize = packetSize - 4;
                 pSPS = malloc(spsSize);
-                memcpy(pSPS, packetBuffer, spsSize);
+                memcpy(pSPS, packetBuffer + 4, spsSize);
                 break;
                 
             case 0x08:
                 //                NSLog(@"pps数据");
                 ppsSize = packetSize - 4;
                 pPPS = malloc(spsSize);
-                memcpy(pPPS, packetBuffer, ppsSize);
+                memcpy(pPPS, packetBuffer + 4, ppsSize);
                 break;
                 
             case 0x05:
@@ -111,6 +119,7 @@ const char pStartCode[] = "\x00\x00\x00\x01";
                 
                 // 2. 解码i帧
                 [self decodeFrame];
+                NSLog(@"开始解码一帧数据");
                 break;
                 
             default:
@@ -170,15 +179,14 @@ const char pStartCode[] = "\x00\x00\x00\x01";
 - (void)initDecompressionSession {
     // 1. 创建CMVideoFormatDescriptionRef
     const uint8_t *pParamSet[2] = {pSPS, pPPS};
-    uint8_t pParamSizes[2] = {spsSize, ppsSize};
-    CMVideoFormatDescriptionRef formatDescription;
-    CMVideoFormatDescriptionCreateFromH264ParameterSets(NULL, 2, pParamSet, pParamSizes, 4, &formatDescription);
+    const size_t pParamSizes[2] = {spsSize, ppsSize};
+    CMVideoFormatDescriptionCreateFromH264ParameterSets(NULL, 2, pParamSet, pParamSizes, 4, &_formatDescription);
     
     // 2. 创建VTDecompressionSessionRef
     NSDictionary *attrs = @{(__bridge NSString *)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)};
     VTDecompressionOutputCallbackRecord callBackRecord;
     callBackRecord.decompressionOutputCallback = decodeCallBack;
-    VTDecompressionSessionCreate(NULL, formatDescription, NULL, (__bridge CFDictionaryRef)attrs, &callBackRecord, &_decompressionSession);
+    VTDecompressionSessionCreate(NULL, self.formatDescription, NULL, (__bridge CFDictionaryRef)attrs, &callBackRecord, &_decompressionSession);
 }
 
 void decodeCallBack(void * CM_NULLABLE decompressionOutputRefCon,
@@ -188,11 +196,29 @@ void decodeCallBack(void * CM_NULLABLE decompressionOutputRefCon,
                     CM_NULLABLE CVImageBufferRef imageBuffer,
                     CMTime presentationTimeStamp,
                     CMTime presentationDuration ) {
-    
+    ViewController *vc = (__bridge ViewController *)sourceFrameRefCon;
+    vc.glLayer.pixelBuffer = imageBuffer;
 }
 
 #pragma mark - 解码数据
 - (void)decodeFrame {
+    // sps/pps CMBlockBuffer
+    // 1. 通过数据创建一个CMBlockBuffer
+    CMBlockBufferRef blockBuffer;
+    CMBlockBufferCreateWithMemoryBlock(NULL, (void *)packetBuffer, packetSize, kCFAllocatorNull, NULL, 0, packetSize, 0, &blockBuffer);
     
+    // 2. 准备CMSampleBufferRef
+    size_t sizeArray[] = {packetSize};
+    CMSampleBufferRef sampleBuffer;
+    CMSampleBufferCreateReady(NULL, blockBuffer, self.formatDescription, 0, 0, NULL, 0, sizeArray, &sampleBuffer);
+    
+    // 3. 开始解码操作
+    OSStatus status = VTDecompressionSessionDecodeFrame(self.decompressionSession, sampleBuffer, 0, (__bridge void * _Nullable)(self), NULL);
+    if (status == noErr) {
+        
+    }
 }
+
+
+
 @end
