@@ -7,21 +7,31 @@
 //
 
 #import "ViewController.h"
+#import <VideoToolbox/VideoToolbox.h>
 
 const char pStartCode[] = "\x00\x00\x00\x01";
 
 @interface ViewController ()
 {
+    // 读取到的数据
     long inputMaxSize;
     long inputSize;
     uint8_t *inputBuffer;
     
+    // 解析的数据
     long packetSize;
     uint8_t *packetBuffer;
+    
+    long spsSize;
+    uint8_t *pSPS;
+    
+    long ppsSize;
+    uint8_t *pPPS;
 }
 @property (nonatomic, weak) CADisplayLink *displayLink;
 @property (nonatomic, strong) NSInputStream *inputStream;
 @property (nonatomic, strong) dispatch_queue_t queue;
+@property (nonatomic, assign) VTDecompressionSessionRef decompressionSession;
 @end
 
 @implementation ViewController
@@ -67,13 +77,53 @@ const char pStartCode[] = "\x00\x00\x00\x01";
         // 2. 判断数据的类型
         if (packetSize == 0 && packetBuffer == NULL) {
             [self.displayLink setPaused:YES];
-            NSLog(@"数据已经读完了");
+            [self.inputStream close];
+            //            NSLog(@"数据已经读完了");
             return;
         }
         
-        // 3. 解码
+        // 3. 解码 H264大端数据 数据是在内存中,系统端数据
+        uint32_t nalSize = (uint32_t)(packetSize - 4);
+        uint32_t *pNAL = (uint32_t *)packetBuffer;
+        *pNAL = CFSwapInt32HostToBig(nalSize);
+        
+        // 4. 获取类型 sps: 0x27 pps:0x28 IDR:0x25
+        int nalType = packetBuffer[4] & 0x1F;
+        switch (nalType) {
+            case 0x07:
+                //                NSLog(@"SPS数据");
+                spsSize = packetSize - 4;
+                pSPS = malloc(spsSize);
+                memcpy(pSPS, packetBuffer, spsSize);
+                break;
+                
+            case 0x08:
+                //                NSLog(@"pps数据");
+                ppsSize = packetSize - 4;
+                pPPS = malloc(spsSize);
+                memcpy(pPPS, packetBuffer, ppsSize);
+                break;
+                
+            case 0x05:
+                //                NSLog(@"idr数据");
+                // 1. 创建VTDecompressionSessionRef
+                [self initDecompressionSession];
+                
+                // 2. 解码i帧
+                [self decodeFrame];
+                break;
+                
+            default:
+                //                NSLog(@"B/P数据");
+                [self decodeFrame];
+                break;
+        }
     });
 }
+
+
+#pragma mark - 从文件中读取一个NALU的数据
+
 
 
 - (void)readPacket {
@@ -93,7 +143,7 @@ const char pStartCode[] = "\x00\x00\x00\x01";
         uint8_t *pStart = inputBuffer + 4;
         uint8_t *pEnd = inputBuffer + inputSize;
         while (pStart != pEnd) {
-            if (memcmp(pStart - 3, pStartCode, 4)) {
+            if (memcmp(pStart - 3, pStartCode, 4) == 0) {
                 // 获取下一个 0x 00 00 00 01
                 packetSize = pStart - 3 - inputBuffer;
                 
@@ -113,8 +163,36 @@ const char pStartCode[] = "\x00\x00\x00\x01";
             }
         }
     }
+}
+
+
+#pragma mark - 初始化VTDecompressionSession
+- (void)initDecompressionSession {
+    // 1. 创建CMVideoFormatDescriptionRef
+    const uint8_t *pParamSet[2] = {pSPS, pPPS};
+    uint8_t pParamSizes[2] = {spsSize, ppsSize};
+    CMVideoFormatDescriptionRef formatDescription;
+    CMVideoFormatDescriptionCreateFromH264ParameterSets(NULL, 2, pParamSet, pParamSizes, 4, &formatDescription);
     
+    // 2. 创建VTDecompressionSessionRef
+    NSDictionary *attrs = @{(__bridge NSString *)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)};
+    VTDecompressionOutputCallbackRecord callBackRecord;
+    callBackRecord.decompressionOutputCallback = decodeCallBack;
+    VTDecompressionSessionCreate(NULL, formatDescription, NULL, (__bridge CFDictionaryRef)attrs, &callBackRecord, &_decompressionSession);
+}
+
+void decodeCallBack(void * CM_NULLABLE decompressionOutputRefCon,
+                    void * CM_NULLABLE sourceFrameRefCon,
+                    OSStatus status,
+                    VTDecodeInfoFlags infoFlags,
+                    CM_NULLABLE CVImageBufferRef imageBuffer,
+                    CMTime presentationTimeStamp,
+                    CMTime presentationDuration ) {
     
+}
+
+#pragma mark - 解码数据
+- (void)decodeFrame {
     
 }
 @end
